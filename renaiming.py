@@ -1,22 +1,25 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Dict
 
 
 def list_contents(directory: Union[str, Path]) -> List[str]:
-    """Lists all files and folders in the given directory.
+    """Lists all files and folders in the given directory, including subdirectories.
 
-    This function iterates over the contents of the directory, checking each item to determine
-    if it is a file or a directory, and then returns a list of their names.
+    This function iterates over the contents of the directory and its subdirectories,
+    returning a list of their relative path names.
 
     Args:
         directory: The directory path from which to list contents. It can be a string or a Path object.
 
     Returns:
-        A list of names of files and directories within the given directory.
+        A list of relative path names of files and directories within the given directory.
     """
     directory = Path(directory) if isinstance(directory, str) else directory
-    return [item.name for item in directory.iterdir() if item.is_file() or item.is_dir()]
-
+    items = []
+    for item in directory.rglob('*'):
+        if item.is_file() or item.is_dir():
+            items.append(str(item.relative_to(directory)))
+    return items
 
 def generate_prompt(items: List[str], custom_instructions: str = "") -> str:
     """Generates a prompt for LLMs based on a list of item names.
@@ -29,7 +32,7 @@ def generate_prompt(items: List[str], custom_instructions: str = "") -> str:
         A formatted prompt string for LLMs.
     """
     prompt = (
-        "Please suggest clean names for the following items. The output should be in a codeblock in a python list:\n"
+        "Please suggest clean names for the following items. The output should be in a codeblock in a python dict where you have the key as the old name and the value with the new name:\n"
     )
     prompt += "\n".join(f"- '{item}'" for item in items)
     prompt += f"\n\n{custom_instructions}" if custom_instructions else ""
@@ -62,50 +65,77 @@ def confirm_renaming() -> bool:
     return confirmation in ["y", "yes"]
 
 
-def rename_items(directory: Path, original_names: List[str], clean_names: List[str]) -> None:
-    """Renames items within the specified directory.
+def rename_items(directory: Path, renaming_map: Dict[str, str]) -> None:
+    """Renames items within the specified directory, including subdirectories.
 
     Args:
-        directory: The directory containing the items to be renamed.
-        original_names: A list of the original names of the items.
-        clean_names: A list of new names to apply to the items.
+        directory: The base directory containing the items to be renamed.
+        renaming_map: A dictionary mapping from original relative paths to new relative paths.
     """
-    for original_name, clean_name in zip(original_names, clean_names):
+    # Sort items by depth, deeper paths first
+    sorted_items = sorted(renaming_map.items(), key=lambda item: len(Path(item[0]).parts), reverse=True)
+    print(sorted_items)
+    for original_rel_path, new_rel_path in sorted_items:
         try:
-            old_path = directory / original_name
-            file_extension = old_path.suffix if old_path.is_file() else ""
-            new_name_with_ext = clean_name + file_extension
-            new_path = directory / new_name_with_ext
+            old_path = directory / original_rel_path
+            new_path = directory / new_rel_path
 
             if not old_path.exists():
-                print(f"Item not found: {original_name}")
+                print(f"Item not found: {old_path}")
                 continue
 
-            if new_path.exists() and new_path != old_path:
-                print(f"Skipping: {new_name_with_ext} already exists.")
-                continue
+            elif new_path.exists():
+                if old_path.is_dir():
+                    # Handle existing directory (skip or merge logic here)
+                    print(f"Skipping directory as it already exists: {new_path}")
+                    continue
+                else:
+                    print(f"Skipping: {new_path} already exists.")
+                    continue
+
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Handling directory renaming
+            if old_path.is_dir():
+                # Creating new directory structure if it doesn't exist
+                new_path.mkdir(parents=True, exist_ok=True)
+                # todo check if directory is empty, if it is the case possibility to remove the old one
 
             old_path.rename(new_path)
-            print(f"Renamed '{original_name}' to '{new_name_with_ext}'")
+            print(f"Renamed '{old_path}' to '{new_path}'")
         except OSError as error:
-            print(f"Error renaming '{original_name}': {error}")
+            print(f"Error renaming '{old_path}': {error}")
 
 
-def rename_items_with_checks(directory: Union[str, Path], clean_names: List[str]) -> None:
+def rename_items_with_checks(directory: Union[str, Path], renaming_map: Dict[str, str]) -> None:
     """Coordinates the entire renaming process, including validation and user confirmation.
 
     Args:
         directory: The directory containing the items to be renamed.
-        clean_names: A list of new, clean names to be assigned to the items.
+        renaming_map: A dictionary mapping original names to new, clean names.
     """
     directory = Path(directory) if isinstance(directory, str) else directory
-    original_names = list_contents(directory)
 
     try:
-        validate_renaming_inputs(original_names, clean_names)
+        # Updated validation to work with the dictionary
+        validate_renaming_inputs_with_map(directory, renaming_map)
         if confirm_renaming():
-            rename_items(directory, original_names, clean_names)
+            rename_items(directory, renaming_map)
         else:
             print("Renaming operation cancelled.")
     except ValueError as error:
         print(f"Input validation error: {error}")
+
+def validate_renaming_inputs_with_map(directory: Path, renaming_map: Dict[str, str]) -> None:
+    """Validates the renaming map against the contents of the directory.
+
+    Args:
+        directory: The directory with items to be renamed.
+        renaming_map: A mapping of original to new names.
+
+    Raises:
+        ValueError: If there's a mismatch between directory contents and the renaming map.
+    """
+
+    if not renaming_map:
+        raise ValueError("No renaming map provided.")
