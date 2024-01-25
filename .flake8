@@ -1,0 +1,11 @@
+[flake8]
+exclude =
+    .tox,
+    .git,
+    __pycache__,
+    *.pyc,
+    *.egg-info,
+    .cache,
+    .venv/*,
+    .eggs
+max-line-length=120
