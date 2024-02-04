@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Union
 
-PROMPT = """
+INSTRUCTION = """
 Please suggest clean names for the following items. The output should be in a codeblock in a python dict where you have 
 the keys as the old names and the values as the new names:\n
 """
@@ -66,27 +66,75 @@ def should_include_item(
     return depth_condition and (file_condition or folder_condition)
 
 
-def generate_llm_prompt(items: List[str], custom_instructions: str = "", base_prompt: str = PROMPT) -> str:
+def compose_llm_prompt(items: List[str], custom_instructions: str = "", initial_instruction: str = INSTRUCTION) -> str:
     """
-    Generate a custom LLM prompt for renaming suggestions based on a list of file and directory names.
+    Composes a Language Learning Model (LLM) prompt for generating renaming suggestions.
+
+    This function constructs a structured prompt to be used with an LLM. It includes a list of current
+    file and directory names (items), along with any additional custom instructions for renaming.
+    The base prompt provides a predefined textual context for the LLM.
 
     Args:
-        items (List[str]): List of file and directory names for which renaming suggestions are sought.
-        custom_instructions (str): Additional instructions to include in the prompt. Default is an empty string.
-        base_prompt (str): Base text for the prompt. Default is a predefined prompt text.
+        items (List[str]): Names of files and directories to be considered for renaming.
+        custom_instructions (str, optional): Custom guidelines or rules to be followed for renaming.
+                                             Defaults to an empty string.
+        initial_instruction (str, optional): The initial text of the prompt, setting the context for the LLM.
+                                     Defaults to a predefined prompt text (PROMPT).
 
     Returns:
-        str: A fully formatted LLM prompt including the items and any custom instructions.
+        str: The complete LLM prompt, combining base text, file/directory names, and custom instructions.
     """
     # Format each item for inclusion in the prompt
     formatted_items = "\n".join(f"- '{item}'" for item in items)
-    prompt_with_items = f"{base_prompt}\n{formatted_items}"
+    prompt_with_items = f"{initial_instruction}\n{formatted_items}"
 
     # Append custom instructions if provided
     if custom_instructions:
         prompt_with_items += f"\n\n{custom_instructions}"
 
     return prompt_with_items
+
+
+def generate_llm_prompt(
+    directory_path: Union[str, Path],
+    depth: int,
+    include_files: bool,
+    include_folders: bool,
+    custom_instructions: str = "",
+    initial_instruction: str = INSTRUCTION,
+):
+    """
+    Generate a Language Learning Model (LLM) prompt for file and directory renaming suggestions.
+
+    This function first lists all relevant items (files and/or directories) in the specified directory,
+    considering the specified depth. It then composes a prompt that includes these items and any
+    custom instructions, to be used with an LLM for renaming suggestions.
+
+    Args:
+        directory_path (Union[str, Path]): The path of the directory to list items from.
+        depth (int): Maximum depth for subdirectory traversal; use -1 for unlimited depth.
+        include_files (bool): Flag to include files in the listing.
+        include_folders (bool): Flag to include directories in the listing.
+        custom_instructions (str, optional): Additional instructions to include in the prompt.
+                                         Defaults to an empty string.
+        initial_instruction (str, optional): Base text for the prompt. Defaults to a predefined prompt text.
+
+    Returns:
+        str: A fully formatted LLM prompt ready to be used for obtaining renaming suggestions.
+    """
+    items = list_directory_items(
+        directory=directory_path,
+        depth=depth,
+        include_files=include_files,
+        include_folders=include_folders,
+    )
+
+    llm_prompt = compose_llm_prompt(
+        items=items,
+        custom_instructions=custom_instructions,
+        initial_instruction=initial_instruction,
+    )
+    return llm_prompt
 
 
 def confirm_renaming() -> bool:
@@ -100,7 +148,7 @@ def confirm_renaming() -> bool:
     return confirmation in ["y", "yes"]
 
 
-def execute_bulk_renaming(directory: Path, renaming_map: Dict[str, str]) -> None:
+def execute_bulk_renaming(directory: Path, renaming_map: Dict[str, str]) -> None:  # todo directory path
     """
     Execute renaming of multiple files and directories based on the provided renaming map.
 
