@@ -1,6 +1,6 @@
 # 🗂️ `renAIming`
 
-`renAIming` is a versatile Python utility designed to enhance your digital workspace. It offers the flexibility to streamline the renaming of files and directories and, if desired, can also update their structure. This adaptability is powered by Language Learning Models (LLMs), which, through custom prompts, can intelligently generate intuitive, clean names or suggest organizational improvements to suit your specific needs.
+`renaiming` is a versatile Python utility designed to enhance your digital workspace. It offers the flexibility to streamline the renaming of files and directories and, if desired, can also update their structure. This adaptability is powered by Language Learning Models (LLMs), which, through custom prompts, can intelligently generate intuitive, clean names or suggest organizational improvements to suit your specific needs.
 
 ## Usage
 
@@ -8,12 +8,18 @@
 2. **Prompt Generation:** The script automatically generates prompts based on the existing names of your files. Use these prompts with ChatGPT to obtain suggestions for more descriptive and cleaner names. 
 3. **Execute Renaming:** After compiling a list of the suggested names, input them into the script. It will then proceed to rename the items in your directory, post your confirmation.
 
-With renAIming, managing and organizing your digital files becomes a streamlined and user-friendly process.
+With `renaiming`, managing and organizing your digital files becomes a streamlined and user-friendly process.
 
 ## Requirements
 
 - Python 3.6 or higher.
 - Access to ChatGPT or similar service for generating name suggestions.
+
+## Installation
+
+```
+pip install git+https://github.com/thomashirtz/renaiming#egg=renaiming
+```
 
 ## Examples
 
@@ -22,7 +28,7 @@ With renAIming, managing and organizing your digital files becomes a streamlined
 <details open>
   <summary><b>Details</b></summary>
 
-This example demonstrates how `renAIming` can be utilized to simplify a cluttered movie collection. The goal is to flatten the directory structure and standardize the naming convention for a more organized movie library.
+This example demonstrates how `renaiming` can be utilized to simplify a cluttered movie collection. The goal is to flatten the directory structure and standardize the naming convention for a more organized movie library.
 
 #### Original Directory Structure
 
@@ -57,30 +63,29 @@ We aim to move all movies to the `/movies` directory with a neater and more unif
 `renAIming` includes functionalities for both renaming and relocating files.
 
 Here is the script overview :
+
 ```python
-from renaiming import generate_llm_prompt, list_directory_items
+from renaiming import generate_llm_prompt
 
 directory = r"\movies"
 
-# Generate a prompt for LLM to suggest new names for the items
-items = list_directory_items(
-    directory=directory,
-    depth=-1,
-    include_folders=False,
-    include_files=True,
-)
-
-renaming_instructions = """
-Keep year in parenthesis. Remove folder nesting. Examples:
-- 'Folder/Movie.Title.2020.mkv' => 'Movie Title (2020).mkv'
-- 'Serie_2021.pdf' => 'Serie (2021).pdf'
+instructions = """
+Keep year in parenthesis. Examples:
+- 'Movie.Title.2020.mkv' => 'Movie Title (2020)'
+- 'Document_2021.pdf' => 'Document (2021)'
 """
 
-llm_prompt = generate_llm_prompt(
-    items=items,
-    custom_instructions=renaming_instructions,
+# Generate a prompt for LLM to suggest new names for the items
+prompt = generate_llm_prompt(
+    directory_path=directory,
+    depth=-1,
+    include_folders=True,
+    include_files=True,
+    copy_prompt_to_clipboard=True,
+    custom_instruction=instructions,
 )
-print(llm_prompt)
+
+print(prompt)
 ```
 
 #### Prompt & LLM Answer
@@ -115,6 +120,7 @@ renaming_map = {
 #### Script part 2
 
 Finally, after checking that everything seems good, we do that:
+
 ```python
 from renaiming import rename_items_with_checks
 
@@ -127,7 +133,7 @@ renaming_map = {
 }
 
 # Execute the renaming process using the specified renaming map
-rename_items_with_checks(directory=directory, renaming_map=renaming_map)
+rename_items_with_checks(directory_path=directory, renaming_map=renaming_map)
 ```
 
 This enhanced script functionality not only renames the files but also relocates them to a specified target directory, in this case, flattening the structure to have all movies directly under `/movies`.
