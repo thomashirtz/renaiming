@@ -70,7 +70,7 @@ from renaiming import generate_llm_prompt
 directory = r"\movies"
 
 instructions = """
-Keep year in parenthesis. Examples:
+Keep year in parenthesis. Remove folder nesting. Examples:
 - 'Movie.Title.2020.mkv' => 'Movie Title (2020)'
 - 'Document_2021.pdf' => 'Document (2021)'
 """
