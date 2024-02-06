@@ -71,8 +71,8 @@ directory = r"\movies"
 
 instructions = """
 Keep year in parenthesis. Remove folder nesting. Examples:
-- 'Movie.Title.2020.mkv' => 'Movie Title (2020)'
-- 'Document_2021.pdf' => 'Document (2021)'
+- 'Folder/Movie.Title.2020.mkv' => 'Movie Title (2020).mkv'
+- 'Serie_2021.pdf' => 'Serie (2021).pdf'
 """
 
 # Generate a prompt for LLM to suggest new names for the items
